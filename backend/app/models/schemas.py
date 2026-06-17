@@ -95,7 +95,7 @@ class DifferenceResponse(DifferenceBase):
 
 
 class AuditRecordBase(BaseModel):
-    project_id: int
+    project_id: Optional[int] = None
 
 
 class AuditRecordCreate(AuditRecordBase):
