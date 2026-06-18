@@ -12,7 +12,20 @@ import AuditResult from './pages/AuditResult';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('token');
-  return token ? <>{children}</> : <Navigate to="/login" />;
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem('token');
+      return <Navigate to="/login" />;
+    }
+  } catch {
+    localStorage.removeItem('token');
+    return <Navigate to="/login" />;
+  }
+  return <>{children}</>;
 };
 
 const App: React.FC = () => {
