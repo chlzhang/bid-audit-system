@@ -1,6 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 from app.core.database import Base
 
 
@@ -12,7 +16,7 @@ class User(Base):
     password_hash = Column(String(100), nullable=False)
     role = Column(String(20), default="viewer")
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
     
     templates = relationship("Template", back_populates="creator")
     projects = relationship("Project", back_populates="creator")
@@ -28,8 +32,8 @@ class Template(Base):
     version = Column(String(20), default="1.0")
     file_path = Column(String(500), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     
     creator = relationship("User", back_populates="templates")
     projects = relationship("Project", back_populates="template")
@@ -45,8 +49,8 @@ class Project(Base):
     file_path = Column(String(500), nullable=False)
     status = Column(String(20), default="pending")
     created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     
     template = relationship("Template", back_populates="projects")
     creator = relationship("User", back_populates="projects")
@@ -62,7 +66,8 @@ class AuditRecord(Base):
     status = Column(String(20), default="pending")
     risk_level = Column(String(10))
     summary = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    report_content = Column(Text)
+    created_at = Column(DateTime, default=_utcnow)
     completed_at = Column(DateTime)
     
     project = relationship("Project", back_populates="audit_records")
@@ -83,7 +88,7 @@ class Difference(Base):
     risk_level = Column(String(10))
     description = Column(Text)
     suggestion = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
     
     audit_record = relationship("AuditRecord", back_populates="differences")
 
@@ -97,5 +102,5 @@ class AuditRule(Base):
     rule_content = Column(Text, nullable=False)
     standard_ref = Column(String(200))
     is_enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
