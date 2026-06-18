@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -8,12 +8,14 @@ from app.core.security import verify_password, get_password_hash, create_access_
 from app.core.config import settings
 from app.models.models import User
 from app.models.schemas import UserCreate, UserResponse, Token
+from app.utils.rate_limit import check_rate_limit
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse)
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    check_rate_limit(request)
     result = await db.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -34,9 +36,11 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
+    check_rate_limit(request, form_data.username)
     result = await db.execute(select(User).where(User.username == form_data.username))
     user = result.scalar_one_or_none()
     
