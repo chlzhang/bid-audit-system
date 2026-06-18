@@ -1,5 +1,5 @@
 from docx import Document
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import re
 
 
@@ -116,8 +116,12 @@ class DocumentParser:
         
         return clauses
     
-    def get_full_text(self, file_path: str) -> str:
-        doc = Document(file_path)
+    def get_full_text(self, file_path: str = None, doc: Document = None) -> str:
+        if doc is None:
+            if file_path is None:
+                return ""
+            doc = Document(file_path)
+        
         full_text = []
         
         for para in doc.paragraphs:

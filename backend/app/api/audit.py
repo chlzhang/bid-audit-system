@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,13 +8,13 @@ from datetime import datetime
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.models import User, Project, AuditRecord, Difference
-from app.models.schemas import AuditRecordCreate, AuditRecordResponse, AuditResult
+from app.models.schemas import AuditRecordCreate
 from app.services.audit.service import audit_service
 
 router = APIRouter()
 
 
-@router.post("/start", response_model=AuditResult)
+@router.post("/start")
 async def start_audit(
     audit_data: AuditRecordCreate,
     db: AsyncSession = Depends(get_db),
@@ -66,32 +67,71 @@ async def start_audit(
         
         project.status = "completed"
         
+        report = audit_service.generate_report(audit_result)
+        audit_record.report_content = report
+        
         await db.commit()
         
-        result = await db.execute(
-            select(AuditRecord)
-            .options(selectinload(AuditRecord.differences))
+        diff_result = await db.execute(
+            select(Difference).where(Difference.audit_record_id == audit_record.id)
+        )
+        diffs = diff_result.scalars().all()
+        
+        return {
+            "audit_record": {
+                "id": audit_record.id,
+                "project_id": audit_record.project_id,
+                "auditor_id": audit_record.auditor_id,
+                "status": audit_record.status,
+                "risk_level": audit_record.risk_level,
+                "summary": audit_record.summary,
+                "report_content": audit_record.report_content,
+                "created_at": audit_record.created_at.isoformat() if audit_record.created_at else None,
+                "completed_at": audit_record.completed_at.isoformat() if audit_record.completed_at else None,
+                "differences": [
+                    {
+                        "id": d.id,
+                        "audit_record_id": d.audit_record_id,
+                        "diff_type": d.diff_type,
+                        "category": d.category,
+                        "location": d.location,
+                        "template_content": d.template_content,
+                        "project_content": d.project_content,
+                        "risk_level": d.risk_level,
+                        "description": d.description,
+                        "suggestion": d.suggestion,
+                        "created_at": d.created_at.isoformat() if d.created_at else None,
+                    }
+                    for d in diffs
+                ]
+            },
+            "total_differences": audit_result.get("total_differences", 0),
+            "high_risk_count": audit_result.get("high_risk_count", 0),
+            "medium_risk_count": audit_result.get("medium_risk_count", 0),
+            "low_risk_count": audit_result.get("low_risk_count", 0),
+            "summary": audit_result.get("summary", "")
+        }
+        
+    except Exception:
+        import logging
+        logger = logging.getLogger(__name__)
+        error_id = str(uuid.uuid4())[:8]
+        logger.exception("Audit failed error_id=%s", error_id)
+        await db.rollback()
+        from sqlalchemy import update as sa_update
+        await db.execute(
+            sa_update(AuditRecord)
             .where(AuditRecord.id == audit_record.id)
+            .values(status="failed", summary="审核处理失败，错误ID: %s" % error_id)
         )
-        audit_record = result.scalar_one()
-        
-        return AuditResult(
-            audit_record=audit_record,
-            total_differences=audit_result.get("total_differences", 0),
-            high_risk_count=audit_result.get("high_risk_count", 0),
-            medium_risk_count=audit_result.get("medium_risk_count", 0),
-            low_risk_count=audit_result.get("low_risk_count", 0),
-            summary=audit_result.get("summary", "")
-        )
-        
-    except Exception as e:
-        audit_record.status = "failed"
-        audit_record.summary = f"审核失败: {str(e)}"
         await db.commit()
-        raise HTTPException(status_code=500, detail=f"审核失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="审核服务暂时不可用，请联系管理员 (错误ID: %s)" % error_id
+        )
 
 
-@router.get("/records", response_model=List[AuditRecordResponse])
+@router.get("/records")
 async def list_audit_records(
     project_id: int = None,
     db: AsyncSession = Depends(get_db),
@@ -101,10 +141,40 @@ async def list_audit_records(
     if project_id:
         query = query.where(AuditRecord.project_id == project_id)
     result = await db.execute(query.order_by(AuditRecord.created_at.desc()))
-    return result.scalars().all()
+    records = result.scalars().all()
+    return [
+        {
+            "id": r.id,
+            "project_id": r.project_id,
+            "auditor_id": r.auditor_id,
+            "status": r.status,
+            "risk_level": r.risk_level,
+            "summary": r.summary,
+            "report_content": r.report_content,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            "differences": [
+                {
+                    "id": d.id,
+                    "audit_record_id": d.audit_record_id,
+                    "diff_type": d.diff_type,
+                    "category": d.category,
+                    "location": d.location,
+                    "template_content": d.template_content,
+                    "project_content": d.project_content,
+                    "risk_level": d.risk_level,
+                    "description": d.description,
+                    "suggestion": d.suggestion,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                }
+                for d in r.differences
+            ]
+        }
+        for r in records
+    ]
 
 
-@router.get("/records/{record_id}", response_model=AuditRecordResponse)
+@router.get("/records/{record_id}")
 async def get_audit_record(
     record_id: int,
     db: AsyncSession = Depends(get_db),
@@ -118,7 +188,33 @@ async def get_audit_record(
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="审核记录不存在")
-    return record
+    return {
+        "id": record.id,
+        "project_id": record.project_id,
+        "auditor_id": record.auditor_id,
+        "status": record.status,
+        "risk_level": record.risk_level,
+        "summary": record.summary,
+        "report_content": record.report_content,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+        "completed_at": record.completed_at.isoformat() if record.completed_at else None,
+        "differences": [
+            {
+                "id": d.id,
+                "audit_record_id": d.audit_record_id,
+                "diff_type": d.diff_type,
+                "category": d.category,
+                "location": d.location,
+                "template_content": d.template_content,
+                "project_content": d.project_content,
+                "risk_level": d.risk_level,
+                "description": d.description,
+                "suggestion": d.suggestion,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in record.differences
+        ]
+    }
 
 
 @router.get("/records/{record_id}/report")
@@ -127,11 +223,42 @@ async def get_audit_report(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    result = await db.execute(select(AuditRecord).where(AuditRecord.id == record_id))
+    result = await db.execute(
+        select(AuditRecord)
+        .options(selectinload(AuditRecord.differences))
+        .where(AuditRecord.id == record_id)
+    )
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="审核记录不存在")
     
+    # 如果数据库已存储报告内容，直接返回
+    if record.report_content:
+        differences = record.differences
+        audit_result = {
+            "overall_risk_level": record.risk_level if record.risk_level else "low",
+            "total_differences": len(differences),
+            "high_risk_count": sum(1 for d in differences if d.risk_level == "high"),
+            "medium_risk_count": sum(1 for d in differences if d.risk_level == "medium"),
+            "low_risk_count": sum(1 for d in differences if d.risk_level == "low"),
+            "summary": record.summary or "",
+            "differences": [
+                {
+                    "type": d.diff_type,
+                    "category": d.category,
+                    "location": d.location,
+                    "template_content": d.template_content,
+                    "project_content": d.project_content,
+                    "risk_level": d.risk_level if d.risk_level else "low",
+                    "description": d.description,
+                    "suggestion": d.suggestion
+                }
+                for d in differences
+            ]
+        }
+        return {"report": record.report_content, "audit_result": audit_result}
+    
+    # 兼容旧数据：没有存储报告时实时生成
     differences_result = await db.execute(
         select(Difference).where(Difference.audit_record_id == record_id)
     )
