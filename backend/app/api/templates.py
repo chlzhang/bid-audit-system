@@ -3,19 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 import os
-import uuid
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.core.config import settings
 from app.models.models import User, Template
 from app.models.schemas import TemplateCreate, TemplateResponse
+from app.utils.file_utils import safe_file_path, validate_file_size
 
 router = APIRouter()
 
 
 @router.post("/", response_model=TemplateResponse)
 async def create_template(
-    name: str = Form(...),
+    name: str = Form(..., min_length=1, max_length=100),
     description: str = Form(None),
     version: str = Form("1.0"),
     file: UploadFile = File(...),
@@ -24,17 +24,15 @@ async def create_template(
 ):
     if current_user.role.lower() not in ["admin", "auditor"]:
         raise HTTPException(status_code=403, detail="权限不足")
-    
-    if not file.filename.endswith('.docx'):
-        raise HTTPException(status_code=400, detail="仅支持 .docx 文件")
-    
-    file_id = str(uuid.uuid4())
-    file_path = os.path.join(settings.UPLOAD_DIR, f"template_{file_id}.docx")
-    
+
+    content = await file.read()
+    validate_file_size(content, settings.MAX_FILE_SIZE)
+
+    file_path = safe_file_path(settings.UPLOAD_DIR, "template", file.filename)
+
     with open(file_path, "wb") as buffer:
-        content = await file.read()
         buffer.write(content)
-    
+
     template = Template(
         name=name,
         description=description,

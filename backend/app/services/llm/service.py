@@ -111,10 +111,10 @@ class LLMService:
         prompt = f"""请对比分析以下两个技术文件的差异：
 
 【标准化技术文件模板】
-{template_content[:3000]}
+{template_content[:200000]}
 
 【项目招标技术文件】
-{project_content[:3000]}
+{project_content[:200000]}
 """
         
         if context:
@@ -140,7 +140,7 @@ class LLMService:
         standards_str = "、".join(standards) if standards else "GB国家标准、DL/T电力行业标准"
         prompt = f"""请检查以下技术文件内容是否符合{standards_str}的要求：
 
-{content[:4000]}
+{content[:200000]}
 
 请指出不符合项并给出修改建议。"""
         

@@ -3,19 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 import os
-import uuid
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.core.config import settings
 from app.models.models import User, Project, Template
 from app.models.schemas import ProjectCreate, ProjectResponse
+from app.utils.file_utils import safe_file_path, validate_file_size
 
 router = APIRouter()
 
 
 @router.post("/", response_model=ProjectResponse)
 async def create_project(
-    name: str = Form(...),
+    name: str = Form(..., min_length=1, max_length=100),
     description: str = Form(None),
     template_id: int = Form(...),
     file: UploadFile = File(...),
@@ -26,17 +26,15 @@ async def create_project(
     template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=404, detail="模板不存在")
-    
-    if not file.filename.endswith('.docx'):
-        raise HTTPException(status_code=400, detail="仅支持 .docx 文件")
-    
-    file_id = str(uuid.uuid4())
-    file_path = os.path.join(settings.UPLOAD_DIR, f"project_{file_id}.docx")
-    
+
+    content = await file.read()
+    validate_file_size(content, settings.MAX_FILE_SIZE)
+
+    file_path = safe_file_path(settings.UPLOAD_DIR, "project", file.filename)
+
     with open(file_path, "wb") as buffer:
-        content = await file.read()
         buffer.write(content)
-    
+
     project = Project(
         name=name,
         description=description,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Descriptions, Button, message, Space, Divider } from 'antd';
+import { Card, Table, Tag, Typography, Descriptions, Button, message, Space, Divider, Spin } from 'antd';
 import { DownloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auditAPI } from '../services/api';
@@ -22,12 +22,13 @@ const AuditResult: React.FC = () => {
   const fetchAuditResult = async (recordId: number) => {
     setLoading(true);
     try {
-      const [recordRes, reportRes] = await Promise.all([
-        auditAPI.getRecord(recordId),
-        auditAPI.getReport(recordId),
-      ]);
-      setAuditResult(recordRes.data);
+      // 先获取报告数据（包含完整的差异和报告内容）
+      const reportRes = await auditAPI.getReport(recordId);
       setReport(reportRes.data.report);
+      
+      // 获取记录基本信息
+      const recordRes = await auditAPI.getRecord(recordId);
+      setAuditResult(recordRes.data);
     } catch (error) {
       message.error('获取审核结果失败');
     } finally {
@@ -123,7 +124,17 @@ const AuditResult: React.FC = () => {
   }
 
   if (!auditResult) {
-    return <Card>审核记录不存在</Card>;
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Title level={4}>审核记录不存在</Title>
+          <Paragraph type="secondary">该审核记录可能已被删除或ID不正确</Paragraph>
+          <Button type="primary" onClick={() => navigate('/')} style={{ marginTop: 16 }}>
+            返回工作台
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
   const differences = auditResult.differences || [];

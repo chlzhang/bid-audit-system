@@ -24,6 +24,9 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    // 每30秒自动刷新数据
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {

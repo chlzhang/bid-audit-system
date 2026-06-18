@@ -122,6 +122,7 @@ class AuditRecordResponse(AuditRecordBase):
     status: str
     risk_level: Optional[str]
     summary: Optional[str]
+    report_content: Optional[str]
     created_at: datetime
     completed_at: Optional[datetime]
     differences: List[DifferenceResponse] = []
