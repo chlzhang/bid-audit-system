@@ -62,18 +62,18 @@ const Projects: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'audited': return 'success';
-      case 'auditing': return 'processing';
-      case 'rejected': return 'error';
+      case 'completed': return 'success';
+      case 'in_progress': return 'processing';
+      case 'failed': return 'error';
       default: return 'default';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'audited': return '已审核';
-      case 'auditing': return '审核中';
-      case 'rejected': return '已驳回';
+      case 'completed': return '已审核';
+      case 'in_progress': return '审核中';
+      case 'failed': return '失败';
       default: return '待审核';
     }
   };
