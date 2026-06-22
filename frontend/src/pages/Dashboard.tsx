@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Typography, Skeleton } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag, Typography, Skeleton, Popconfirm, message } from 'antd';
 import {
   FileTextOutlined,
   ProjectOutlined,
   AuditOutlined,
   CheckCircleOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { templateAPI, projectAPI, auditAPI } from '../services/api';
@@ -215,6 +216,16 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    try {
+      await auditAPI.delete(id);
+      message.success('删除成功');
+      fetchData();
+    } catch {
+      message.error('删除失败');
+    }
+  };
+
   const columns = [
     {
       title: 'ID',
@@ -254,9 +265,14 @@ const Dashboard: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 150,
       render: (_: any, record: any) => (
-        <a onClick={() => navigate(`/audit-result/${record.id}`)}>查看详情</a>
+        <>
+          <a onClick={() => navigate(`/audit-result/${record.id}`)}>详情</a>
+          <Popconfirm title="确定删除?" onConfirm={() => handleDelete(record.id)}>
+            <a style={{ color: '#ff4d4f', marginLeft: 12 }}>删除</a>
+          </Popconfirm>
+        </>
       ),
     },
   ];

@@ -67,6 +67,7 @@ export const auditAPI = {
     api.get('/audit/records', { params: projectId ? { project_id: projectId } : {} }),
   getRecord: (id: number) => api.get(`/audit/records/${id}`),
   getReport: (id: number) => api.get(`/audit/records/${id}/report`),
+  delete: (id: number) => api.delete(`/audit/records/${id}`),
 };
 
 export const ruleAPI = {

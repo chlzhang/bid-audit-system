@@ -239,3 +239,25 @@ async def get_audit_report(
 
     report = audit_service.generate_report(audit_result)
     return {"report": report, "audit_result": audit_result}
+
+
+@router.delete("/records/{record_id}")
+async def delete_audit_record(
+    record_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    result = await db.execute(
+        select(AuditRecord)
+        .options(selectinload(AuditRecord.differences))
+        .where(AuditRecord.id == record_id)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="审核记录不存在")
+
+    for diff in record.differences:
+        await db.delete(diff)
+    await db.delete(record)
+    await db.commit()
+    return {"message": "删除成功"}

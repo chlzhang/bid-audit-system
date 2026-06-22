@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Tag, Typography, Button, message, Space, Divider,
-  Breadcrumb, Skeleton, Tooltip, Row, Col,
+  Breadcrumb, Skeleton, Tooltip, Row, Col, Popconfirm,
 } from 'antd';
 import {
   DownloadOutlined, ArrowLeftOutlined, CopyOutlined,
-  HomeOutlined, FileSearchOutlined,
+  HomeOutlined, FileSearchOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auditAPI } from '../services/api';
@@ -84,6 +84,16 @@ const AuditResult: React.FC = () => {
     }).catch(() => {
       message.error('复制失败');
     });
+  };
+
+  const handleDelete = async () => {
+    try {
+      await auditAPI.delete(parseInt(id!));
+      message.success('删除成功');
+      navigate('/');
+    } catch {
+      message.error('删除失败');
+    }
   };
 
   const diffColumns = [
@@ -277,6 +287,9 @@ const AuditResult: React.FC = () => {
         <Tooltip title="复制完整报告">
           <Button icon={<CopyOutlined />} onClick={handleCopyReport}>复制报告</Button>
         </Tooltip>
+        <Popconfirm title="确定删除此审核记录?" onConfirm={handleDelete}>
+          <Button danger icon={<DeleteOutlined />}>删除</Button>
+        </Popconfirm>
       </Space>
 
       {auditResult.summary && (
