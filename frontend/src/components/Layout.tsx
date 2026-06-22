@@ -21,6 +21,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const contentStyle: React.CSSProperties = {
+    margin: '24px 16px',
+    padding: 24,
+    background: '#fff',
+    borderRadius: 8,
+    minHeight: 280,
+    animation: 'fadeIn 0.3s ease-in',
+  };
+
   const menuItems = [
     {
       key: '/',
@@ -77,7 +86,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[location.pathname === '/' ? '/' : location.pathname]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
@@ -90,6 +99,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            zIndex: 1,
           }}
         >
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -98,7 +109,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Button>
           </Dropdown>
         </Header>
-        <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}>
+        <Content style={contentStyle}>
           {children}
         </Content>
       </Layout>

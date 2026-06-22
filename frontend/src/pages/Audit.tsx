@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Select, Button, message, Typography, Spin, Alert } from 'antd';
+import { Card, Select, Button, message, Typography, Spin, Alert, Steps } from 'antd';
 import { AuditOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { projectAPI, auditAPI } from '../services/api';
 
 const { Title, Paragraph } = Typography;
 
+const AUDIT_STEPS = [
+  { title: '解析文档' },
+  { title: '对比分析' },
+  { title: '合规检查' },
+  { title: '生成报告' },
+];
+
 const Audit: React.FC = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [auditing, setAuditing] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -41,11 +49,29 @@ const Audit: React.FC = () => {
     }
 
     setAuditing(true);
+    setCurrentStep(0);
+
+    const stepTimer = setInterval(() => {
+      setCurrentStep(prev => {
+        if (prev >= 3) {
+          clearInterval(stepTimer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 15000);
+
     try {
       const response = await auditAPI.start(selectedProject);
+      clearInterval(stepTimer);
+      setCurrentStep(4);
       message.success('审核完成');
-      navigate(`/audit-result/${response.data.audit_record.id}`);
+      setTimeout(() => {
+        navigate(`/audit-result/${response.data.audit_record.id}`);
+      }, 500);
     } catch (error: any) {
+      clearInterval(stepTimer);
+      setCurrentStep(-1);
       message.error(error.response?.data?.detail || '审核失败');
     } finally {
       setAuditing(false);
@@ -102,9 +128,18 @@ const Audit: React.FC = () => {
       {auditing && (
         <Card style={{ marginTop: 24, textAlign: 'center' }}>
           <Spin size="large" />
-          <Paragraph style={{ marginTop: 16 }}>
+          <Paragraph style={{ marginTop: 16, marginBottom: 24 }}>
             正在进行智能审核，请稍候...
           </Paragraph>
+          <Steps
+            current={currentStep}
+            size="small"
+            items={AUDIT_STEPS.map((step, i) => ({
+              ...step,
+              status: i < currentStep ? 'finish' as const : i === currentStep ? 'process' as const : 'wait' as const,
+            }))}
+            style={{ maxWidth: 500, margin: '0 auto' }}
+          />
         </Card>
       )}
     </div>

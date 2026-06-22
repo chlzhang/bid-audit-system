@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message, Typography } from 'antd';
+import { Form, Input, Button, Card, message, notification, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
@@ -15,7 +15,12 @@ const Login: React.FC = () => {
     try {
       const response = await authAPI.login(values.username, values.password);
       localStorage.setItem('token', response.data.access_token);
-      message.success('登录成功');
+      notification.success({
+        message: '登录成功',
+        description: '欢迎使用招标技术文件审核系统',
+        placement: 'topRight',
+        duration: 2,
+      });
       navigate('/');
     } catch (error: any) {
       message.error(error.response?.data?.detail || '登录失败');
