@@ -64,7 +64,7 @@ export const projectAPI = {
 export const auditAPI = {
   start: (projectId: number) => api.post('/audit/start', { project_id: projectId }),
   listRecords: (projectId?: number) =>
-    api.get('/audit/records/', { params: projectId ? { project_id: projectId } : {} }),
+    api.get('/audit/records', { params: projectId ? { project_id: projectId } : {} }),
   getRecord: (id: number) => api.get(`/audit/records/${id}`),
   getReport: (id: number) => api.get(`/audit/records/${id}/report`),
 };
