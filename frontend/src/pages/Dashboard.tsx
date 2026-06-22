@@ -6,11 +6,83 @@ import {
   AuditOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { Pie, Column } from '@ant-design/charts';
 import { useNavigate } from 'react-router-dom';
 import { templateAPI, projectAPI, auditAPI } from '../services/api';
 
 const { Title } = Typography;
+
+const COLORS = { high: '#ff4d4f', medium: '#faad14', low: '#52c41a' };
+
+function SimplePie({ data }: { data: { type: string; value: number }[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const r = 80;
+  const cx = 120;
+  const cy = 100;
+  let cum = 0;
+
+  const arcs = data.map((d, i) => {
+    const startAngle = (cum / total) * 2 * Math.PI - Math.PI / 2;
+    cum += d.value;
+    const endAngle = (cum / total) * 2 * Math.PI - Math.PI / 2;
+    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const color = COLORS[d.type === '高风险' ? 'high' : d.type === '中风险' ? 'medium' : 'low'];
+
+    const midAngle = (startAngle + endAngle) / 2;
+    const lx = cx + (r + 20) * Math.cos(midAngle);
+    const ly = cy + (r + 20) * Math.sin(midAngle);
+    const pct = Math.round((d.value / total) * 100);
+
+    return (
+      <g key={d.type}>
+        <path
+          d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+          fill={color}
+        />
+        <text x={lx} y={ly} textAnchor={lx > cx ? 'start' : 'end'} fontSize={12} fill={color}>
+          {d.type} {pct}%
+        </text>
+      </g>
+    );
+  });
+
+  return (
+    <svg viewBox="0 0 240 200" width="100%" height={200}>
+      {arcs}
+    </svg>
+  );
+}
+
+function SimpleColumn({ data }: { data: { status: string; count: number }[] }) {
+  const maxVal = Math.max(...data.map((d) => d.count), 1);
+  const barW = 50;
+  const h = 160;
+  const colors: Record<string, string> = { '已完成': '#52c41a', '审核中': '#1890ff', '失败': '#ff4d4f' };
+
+  return (
+    <svg viewBox="0 0 300 200" width="100%" height={200}>
+      {data.map((d, i) => {
+        const barH = (d.count / maxVal) * h;
+        const x = 30 + i * 100;
+        const y = 180 - barH;
+        return (
+          <g key={d.status}>
+            <rect x={x} y={y} width={barW} height={barH} rx={4} fill={colors[d.status] || '#999'} />
+            <text x={x + barW / 2} y={y - 6} textAnchor="middle" fontSize={14} fontWeight="bold" fill={colors[d.status]}>
+              {d.count}
+            </text>
+            <text x={x + barW / 2} y={196} textAnchor="middle" fontSize={12} fill="#666">
+              {d.status}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function useCountUp(end: number, duration: number = 800) {
   const [val, setVal] = useState(0);
@@ -201,35 +273,6 @@ const Dashboard: React.FC = () => {
     { status: '失败', count: stats.failed },
   ];
 
-  const pieConfig = {
-    data: riskPieData,
-    angleField: 'value',
-    colorField: 'type',
-    color: ['#ff4d4f', '#faad14', '#52c41a'],
-    radius: 0.8,
-    autoFit: true,
-    label: {
-      type: 'outer' as const,
-      content: '{name} {percentage}',
-    },
-    legend: {
-      position: 'bottom' as const,
-    },
-    height: 220,
-  };
-
-  const columnConfig = {
-    data: statusColumnData,
-    xField: 'status',
-    yField: 'count',
-    color: ['#52c41a', '#1890ff', '#ff4d4f'],
-    autoFit: true,
-    label: {
-      position: 'top' as const,
-    },
-    height: 220,
-  };
-
   return (
     <div>
       <Title level={4}>工作台</Title>
@@ -275,9 +318,18 @@ const Dashboard: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={12}>
-          <Card title="风险分布" loading={loading} bodyStyle={{ padding: '12px 0' }}>
+          <Card
+            title="风险分布"
+            loading={loading}
+            bodyStyle={{ padding: '12px 0' }}
+            extra={
+              <div style={{ fontSize: 12, color: '#999' }}>
+                高{stats.highRisk} 中{stats.mediumRisk} 低{stats.lowRisk}
+              </div>
+            }
+          >
             {riskPieData.length > 0 ? (
-              <Pie {...pieConfig} />
+              <SimplePie data={riskPieData} />
             ) : (
               <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
                 暂无审核数据
@@ -287,7 +339,7 @@ const Dashboard: React.FC = () => {
         </Col>
         <Col span={12}>
           <Card title="审核状态" loading={loading} bodyStyle={{ padding: '12px 24px' }}>
-            <Column {...columnConfig} />
+            <SimpleColumn data={statusColumnData} />
           </Card>
         </Col>
       </Row>
