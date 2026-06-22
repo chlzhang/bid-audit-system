@@ -207,6 +207,7 @@ const Dashboard: React.FC = () => {
     colorField: 'type',
     color: ['#ff4d4f', '#faad14', '#52c41a'],
     radius: 0.8,
+    autoFit: true,
     label: {
       type: 'outer' as const,
       content: '{name} {percentage}',
@@ -222,6 +223,7 @@ const Dashboard: React.FC = () => {
     xField: 'status',
     yField: 'count',
     color: ['#52c41a', '#1890ff', '#ff4d4f'],
+    autoFit: true,
     label: {
       position: 'top' as const,
     },
